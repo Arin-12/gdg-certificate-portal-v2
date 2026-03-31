@@ -66,7 +66,7 @@ h2 {
     margin-bottom: 20px;
 }
 
-select, button {
+input, button {
     width: 100%;
     padding: 10px;
     margin-top: 12px;
@@ -79,13 +79,30 @@ button {
     background: #667eea;
     color: white;
     border: none;
-    cursor: poniter;
+    cursor: pointer;
 }
 
 button:hover {
     background: #5a67d8;
 }
 
+.suggestions {
+    background: white;
+    border: 1px solid #ccc;
+    max-height: 150px;
+    overflow-y: auto;
+    margin-top: 5px;
+    border-radius: 6px;
+}
+
+.suggestions div {
+    padding: 8px;
+    cursor: pointer;
+}
+
+.suggestions div:hover {
+    background: #eee;
+}
 </style>
 
 </head>
@@ -100,17 +117,48 @@ button:hover {
 <h2>🎓 Download Certificate</h2>
 
 <form action="/download" method="post">
-<select name="name" required>
-<option value="">Select your name</option>
-{% for student in students %}
-<option value="{{student}}">{{student}}</option>
-{% endfor %}
-</select>
+
+<input type="text" id="searchBox" placeholder="Search your name..." autocomplete="off" required>
+<input type="hidden" name="name" id="selectedName">
+
+<div id="suggestions" class="suggestions"></div>
 
 <button type="submit">Download Certificate</button>
+
 </form>
 
 </div>
+
+<script>
+const students = {{ students | tojson }};
+const searchBox = document.getElementById("searchBox");
+const suggestions = document.getElementById("suggestions");
+const selectedName = document.getElementById("selectedName");
+
+searchBox.addEventListener("input", function() {
+    let value = this.value.toLowerCase();
+    suggestions.innerHTML = "";
+
+    if (value === "") return;
+
+    let filtered = students.filter(name =>
+        name.toLowerCase().includes(value)
+    );
+
+    filtered.slice(0, 5).forEach(name => {
+        let div = document.createElement("div");
+        div.innerText = name;
+
+        div.onclick = () => {
+            searchBox.value = name;
+            selectedName.value = name;
+            suggestions.innerHTML = "";
+        };
+
+        suggestions.appendChild(div);
+    });
+});
+</script>
 
 </body>
 </html>
@@ -129,6 +177,7 @@ def generate_certificate(name):
 
     # Name
     c.setFont("Poppins", 30)
+    c.setFillColorRGB(0.16, 0.16, 0.47)
     text_width = pdfmetrics.stringWidth(name, "Poppins", 30)
     x = (842 - text_width) / 2
     y = 294
