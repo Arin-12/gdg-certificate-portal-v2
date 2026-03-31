@@ -1,0 +1,19 @@
+# Python
+
+**pycache**/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+
+env/
+venv/
+rag_env/
+.venv/
+
+# Jupyter / Spyder
+
+.ipynb_checkpoints/
+.spyproject/
+.spyderproject
