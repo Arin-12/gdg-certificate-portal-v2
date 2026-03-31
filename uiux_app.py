@@ -1,5 +1,8 @@
 from flask import Flask, render_template_string, send_file, request
-from PIL import Image, ImageDraw, ImageFont
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import landscape, A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 import pandas as pd
 import os
 
@@ -14,59 +17,76 @@ HTML_PAGE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>GDG Certificate Download</title>
-    <style>
-        body {
-            font-family: Arial;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            text-align: center;
-            padding: 50px;
-            color: white;
-        }
+<title>GDG Certificate</title>
 
-        .header-title {
-            font-size: 36px;
-            font-weight: bold;
-        }
+<style>
+body {
+    font-family: Arial;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    color: white;
+}
 
-        .badge {
-            display: inline-block;
-            background: white;
-            color: black;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 14px;
-            margin-bottom: 30px;
-        }
+.header-title {
+    font-size: 38px;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
 
-        .card {
-            background: white;
-            color: black;
-            padding: 30px;
-            border-radius: 12px;
-            width: 400px;
-            margin: auto;
-        }
+.header-subtitle {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
 
-        select, button {
-            width: 100%;
-            padding: 12px;
-            margin-top: 15px;
-            font-size: 16px;
-            border-radius: 6px;
-        }
+.badge {
+    background: white;
+    color: black;
+    padding: 6px 12px;
+    border-radius: 20px;
+    margin-bottom: 25px;
+}
 
-        button {
-            background: #667eea;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
+.card {
+    background: white;
+    color: black;
+    padding: 25px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    margin-top: 10px;
+}
 
-        button:hover {
-            background: #5a67d8;
-        }
-    </style>
+h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+select, button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 12px;
+    font-size: 16px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+button {
+    background: #667eea;
+    color: white;
+    border: none;
+    cursor: poniter;
+}
+
+button:hover {
+    background: #5a67d8;
+}
+</style>
+
 </head>
 
 <body>
@@ -75,49 +95,45 @@ HTML_PAGE = """
 <div class="badge">📅 13th March | GDG On Campus MIT-A</div>
 
 <div class="card">
-    <h2>🎓 Download Your Certificate</h2>
+<h2>🎓 Download Certificate</h2>
 
-    <form action="/download" method="post">
-        <select name="name" required>
-            <option value="">Select Your Name</option>
-            {% for student in students %}
-                <option value="{{student}}">{{student}}</option>
-            {% endfor %}
-        </select>
+<form action="/download" method="post">
+<select name="name" required>
+<option value="">Select your name</option>
+{% for student in students %}
+<option value="{{student}}">{{student}}</option>
+{% endfor %}
+</select>
 
-        <button type="submit">Download Certificate</button>
-    </form>
+<button type="submit">Download Certificate</button>
+</form>
+
 </div>
 
 </body>
 </html>
 """
 
-# ---------------- Certificate ----------------
+# ---------------- PDF ----------------
 def generate_certificate(name):
-    try:
-        img = Image.open("UIUX.png")
-        draw = ImageDraw.Draw(img)
+    safe_name = name.replace(" ", "_")
+    file_path = f"{safe_name}.pdf"
 
-        font = ImageFont.truetype("font.ttf", 55)
+    pdfmetrics.registerFont(TTFont('Poppins', 'font.ttf'))
+    c = canvas.Canvas(file_path, pagesize=landscape(A4))
 
-        bbox = draw.textbbox((0, 0), name, font=font)
-        text_width = bbox[2] - bbox[0]
+    # Background
+    c.drawImage("UIUX.png", 0, 0, width=842, height=595)
 
-        x = (img.width - text_width) // 2
-        y = 500
+    # Name
+    c.setFont("Poppins", 30)
+    text_width = pdfmetrics.stringWidth(name, "Poppins", 30)
+    x = (842 - text_width) / 2
+    y = 294
+    c.drawString(x, y, name)
 
-        draw.text((x, y), name, fill=(30,30,80), font=font)
-
-        safe_name = name.replace(" ", "_")
-        file_path = f"{safe_name}.pdf"
-
-        img.save(file_path)
-
-        return file_path
-
-    except Exception as e:
-        return str(e)
+    c.save()
+    return file_path
 
 # ---------------- Routes ----------------
 @app.route('/')
@@ -132,12 +148,8 @@ def download():
         return "Invalid Name!"
 
     file_path = generate_certificate(name)
-
-    if not os.path.exists(file_path):
-        return f"Error: {file_path}"
-
     return send_file(file_path, as_attachment=True)
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
